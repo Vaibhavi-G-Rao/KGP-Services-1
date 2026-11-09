@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IIT KGP Student Service & Micro-Vendor Platform</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+body{font-family:system-ui,-apple-system,sans-serif}
+.in{width:100%;background:#0f172a;border:1px solid #334155;border-radius:.75rem;padding:.5rem .75rem;font-size:.875rem;color:#fff}
+.in:focus{outline:none;border-color:#6366f1}
+.b{border-radius:.75rem;padding:.5rem .9rem;font-size:.75rem;font-weight:600;background:#4f46e5;color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:.3rem}
+.b:hover{background:#4338ca}
+.b2{background:#1e293b;border:1px solid #334155;color:#cbd5e1}
+.b2:hover{background:#334155;color:#fff}
+.cd{background:#1e293b;border:1px solid #334155;border-radius:1rem;padding:.9rem}
+.lb{display:block;font-size:.75rem;color:#94a3b8;margin:.6rem 0 .2rem}
+.hd{font-size:.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem}
+.badge-overdue{background:#881337;color:#fecdd3;border:1px solid #e11d48;font-size:.65rem;padding:.1rem .4rem;border-radius:.5rem;font-weight:700}
+</style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+<header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-40 px-4 py-3 flex justify-between items-center">
+<div data-a="go" data-v="landing" class="cursor-pointer font-bold text-indigo-300 flex items-center gap-2">🏛️ KGP Campus Hub</div>
+<div id="who" class="text-xs text-slate-400"></div>
+</header>
+<main id="app" class="max-w-md mx-auto p-4 pb-24 space-y-4"></main>
+
+<!-- MODALS -->
+<div id="modal" data-a="closeModal" class="hidden fixed inset-0 bg-black/80 z-50 items-center justify-center p-4"><img id="mimg" alt="Payment proof" class="max-h-full rounded-xl"></div>
+<div id="receiptModal" class="hidden fixed inset-0 bg-black/80 z-50 items-center justify-center p-4">
+  <div class="cd max-w-sm w-full space-y-3 relative">
+    <button data-a="closeReceipt" class="absolute top-2 right-2 text-slate-400 text-lg">✕</button>
+    <div class="text-center text-emerald-400 text-3xl">✓</div>
+    <h3 class="font-bold text-center text-base text-white">Order Confirmed!</h3>
+    <div id="receiptBody" class="text-xs space-y-1 bg-slate-900 p-3 rounded-xl border border-slate-700"></div>
+    <button data-a="closeReceipt" class="b w-full">Done & Track Order</button>
+  </div>
+</div>
+<div id="payModal" class="hidden fixed inset-0 bg-black/80 z-50 items-center justify-center p-4">
+  <div class="cd max-w-sm w-full space-y-3 relative">
+    <button data-a="closePayModal" class="absolute top-2 right-2 text-slate-400 text-lg">✕</button>
+    <h3 class="font-bold text-sm text-white">Pay / Upload Proof for <span id="payModalOid" class="text-indigo-400"></span></h3>
+    <p id="payModalAmt" class="text-xs text-slate-300 font-bold"></p>
+    <div class="text-center bg-slate-900 p-3 rounded-xl border border-slate-700">
+      <p class="text-[10px] text-slate-400">Scan UPI QR Code</p>
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=ratriruchigal@iitkgp&pn=RatriRuchigal" alt="QR" class="w-24 h-24 mx-auto my-1 rounded">
+      <p class="text-[10px] text-indigo-300">ratriruchigal@iitkgp</p>
+    </div>
+    <label class="lb">Upload Screenshot Proof</label>
+    <input type="file" accept="image/*" data-c="payProof" class="text-xs w-full">
+    <button data-a="submitPayProof" class="b w-full">Submit Payment Proof</button>
+  </div>
+</div>
+<div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-700 px-4 py-2 rounded-2xl text-xs opacity-0 transition pointer-events-none z-50"></div>
+
+<script>
+const KEY='kgpHub2';
+const CAT={food:'🌙 Food',crochet:'🧶 Crafts',service:'✂️ Services',other:'🛍️ Other'};
+const HALLS=['Patel','Azad','Nehru','LBS','RK','MS','SN/IG','HJB'];
+const STAT=['Placed','Preparing','Delivered'];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d)return d}catch(e){}return {users:[],vendors:[],items:[],orders:[],complaints:[],session:null,seq:1000}}
+let S=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Storage full. Use smaller photos.')}}
+if(!S.vendors.length){
+S.vendors.push({id:'v1',ownerId:null,name:'Ratri Ruchigal',type:'Product',cat:'food',desc:'Late-night food to your hall',win:'11:00 PM - 3:00 AM',upi:'ratrirojgar@okicici',phone:'9876543210'});
+S.items.push({id:1,vid:'v1',name:'Midnight Chicken Biryani',price:150,stock:25,img:''},{id:2,vid:'v1',name:'Special Masala Maggi',price:50,stock:40,img:''},{id:3,vid:'v1',name:'Aloo Paratha with Butter',price:60,stock:30,img:''});
+save();
+}
+
+// Global state variables
+let cur='landing',authMode='choice',role=S.session?S.session.role:null,selectedCat=null,vtab='orders',custTab='all',vid=null,pay='COD',proof='',payModalProof='',activePayOid=null,newImg='',lastOrder=null,cart={vid:null,q:{}};
+const nid=()=>++S.seq;
+const me=()=>S.users.find(u=>S.session&&u.id===S.session.uid);
+const mv=()=>S.vendors.find(v=>S.session&&v.ownerId===S.session.uid);
+const cartTotal=()=>Object.entries(cart.q).reduce((s,[id,q])=>s+q*(S.items.find(i=>i.id==id)||{price:0}).price,0);
+const badge=s=>`<span class="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px]">${esc(s)}</span>`;
+const opts=(arr,sel)=>arr.map(h=>`<option ${h===sel?'selected':''}>${esc(h)}</option>`).join('');
+
+function isOverdue(o){
+  if(o.paid) return false;
+  return (Date.now() - (o.t || Date.now())) > (7 * 24 * 60 * 60 * 1000);
+}
+
+function daysAgo(t){
+  const d = Math.floor((Date.now() - (t || Date.now())) / (1000 * 60 * 60 * 24));
+  return d === 0 ? 'Today' : `${d}d ago`;
+}
+
+function toast(m){const t=$('toast');t.textContent=m;t.style.opacity=1;clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity=0,2500)}
+function readImg(f,max,cb){if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.7))};im.src=r.result};r.readAsDataURL(f)}
+function go(v){cur=v;render();window.scrollTo(0,0)}
+function render(){const u=me();$('who').textContent=u&&S.session?u.name+' ('+S.session.role+')':'';$('app').innerHTML=V[cur]()}
+function enter(){if(role==='customer')go('categories');else go(mv()?'vdash':'onboard')}
+
+const V={
+landing:()=>`<div class="text-center space-y-2 pt-6"><p class="text-xs text-indigo-400">IIT Kharagpur Entrepreneurship Initiative</p><h2 class="text-2xl font-extrabold">Late-night food, crafts and room services</h2><p class="text-sm text-slate-400">Order from student ventures across all Halls of Residence.</p></div>
+<button data-a="role" data-v="customer" class="w-full cd text-left"><b>🛒 I am a customer</b><p class="text-xs text-slate-400">Browse and order from campus vendors</p></button>
+<button data-a="role" data-v="vendor" class="w-full cd text-left"><b>🧑‍🍳 I am a vendor or business</b><p class="text-xs text-slate-400">List products or services, track orders and payments</p></button>`,
+
+auth:()=>{
+  if(authMode==='choice'){
+    return `<button data-a="go" data-v="landing" class="b b2 mb-2">← Back to Role Selection</button>
+    <div class="cd text-center space-y-4 py-6">
+      <h2 class="font-bold text-lg">${role==='vendor'?'Vendor':'Customer'} Access</h2>
+      <p class="text-xs text-slate-400">Sign in to your existing account or register as a new user.</p>
+      <div class="space-y-2 pt-2">
+        <button data-a="setAuthMode" data-v="login" class="b w-full py-3 text-sm">Log In to Account</button>
+        <button data-a="setAuthMode" data-v="signup" class="b b2 w-full py-3 text-sm">Sign Up (New User)</button>
+      </div>
+    </div>`;
+  }
+  if(authMode==='login'){
+    return `<button data-a="setAuthMode" data-v="choice" class="b b2 mb-2">← Back</button>
+    <div class="cd space-y-2">
+      <h2 class="font-bold text-lg">Log In (${role==='vendor'?'Vendor':'Customer'})</h2>
+      <label class="lb">Username or Email</label><input id="l-user" class="in" placeholder="student@iitkgp.ac.in">
+      <label class="lb">Password</label><input id="l-pass" type="password" class="in" placeholder="••••••••">
+      <button data-a="login" class="b w-full mt-4 py-2">Log In</button>
+    </div>`;
+  }
+  return `<button data-a="setAuthMode" data-v="choice" class="b b2 mb-2">← Back</button>
+  <div class="cd"><h2 class="font-bold text-lg">Create New ${role==='vendor'?'Vendor':'Customer'} Account</h2>
+  <label class="lb">Full Name</label><input id="a-name" class="in">
+  <label class="lb">Username / Email</label><input id="a-email" type="email" class="in" placeholder="user@iitkgp.ac.in">
+  <label class="lb">Password</label><input id="a-pass" type="password" class="in">
+  <label class="lb">Phone Number</label><input id="a-phone" type="tel" class="in">
+  ${role==='customer'?`<label class="lb">Hall of residence</label><select id="a-hall" class="in">${opts(HALLS)}</select>`:''}
+  <button data-a="auth" class="b w-full mt-4">Create Account & Continue</button></div>`;
+},
+
+categories:()=>`<div class="flex justify-between items-center"><h2 class="font-bold text-xl">Select Category</h2><div class="space-x-1"><button data-a="go" data-v="orders" class="b b2">My orders</button><button data-a="logout" class="b b2">Log out</button></div></div>
+<p class="text-xs text-slate-400">Choose a service or product offering to view available campus vendors.</p>
+<div class="grid grid-cols-2 gap-3 pt-2">
+  ${Object.entries(CAT).map(([k,n])=>{
+    const count = S.vendors.filter(v=>v.cat===k).length;
+    return `<div data-a="pickCat" data-v="${k}" class="cd cursor-pointer hover:border-indigo-500 text-center p-4 transition-all">
+      <div class="text-3xl mb-1">${n.split(' ')[0]}</div>
+      <b class="text-sm block">${n.split(' ')[1]}</b>
+      <span class="text-[10px] text-indigo-300 font-bold">${count} Vendors</span>
+    </div>`;
+  }).join('')}
+</div>`,
+
+onboard:()=>`<button data-a="logout" class="b b2 mb-2">← Back / Change Role</button>
+<div class="cd"><h2 class="font-bold text-lg">Set up your business</h2>
+<label class="lb">Business name</label><input id="o-name" class="in">
+<label class="lb">Do you offer a product or a service?</label><select id="o-type" class="in"><option>Product</option><option>Service</option></select>
+<label class="lb">Category</label><select id="o-cat" class="in">${Object.entries(CAT).map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select>
+<label class="lb">What do you offer?</label><input id="o-desc" class="in" placeholder="e.g. Handmade crochet keychains">
+<label class="lb">Delivery window</label><input id="o-win" class="in" placeholder="11:00 PM - 3:00 AM">
+<label class="lb">UPI ID for payments</label><input id="o-upi" class="in" placeholder="name@bank">
+<label class="lb">Contact Phone</label><input id="o-phone" class="in" placeholder="9876543210">
+<button data-a="onboard" class="b w-full mt-4">Create my store</button></div>`,
+
+vendors:()=>{const l=S.vendors.filter(v=>v.cat===selectedCat);
+return `<div class="flex justify-between items-center"><button data-a="go" data-v="categories" class="b b2">← Categories</button><div class="space-x-1"><button data-a="go" data-v="orders" class="b b2">My orders</button></div></div>
+<h2 class="font-bold text-xl">${CAT[selectedCat]} Vendors</h2>
+${l.map(v=>`<div data-a="store" data-v="${v.id}" class="cd cursor-pointer hover:border-indigo-500 transition-colors"><p class="text-[11px] text-indigo-300">${CAT[v.cat]} | ${esc(v.type)}</p><h3 class="font-bold text-base">${esc(v.name)}</h3><p class="text-xs text-slate-400">${esc(v.desc)}</p><p class="text-xs text-indigo-400 mt-1">${S.items.filter(i=>i.vid===v.id).length} offerings, delivery ${esc(v.win)}</p></div>`).join('')||'<p class="text-center text-xs text-slate-500 py-6">No vendors in this category yet.</p>'}`},
+
+store:()=>{const v=S.vendors.find(x=>x.id===vid),items=S.items.filter(i=>i.vid===vid),n=Object.values(cart.q).reduce((a,b)=>a+b,0);
+return `<button data-a="go" data-v="vendors" class="b b2">← Back to vendors</button>
+<div class="cd"><h2 class="font-bold text-lg">${esc(v.name)}</h2><p class="text-xs text-slate-400">${esc(v.desc)}. Delivery ${esc(v.win)}</p><p class="text-xs text-indigo-300 mt-1">📞 POC Contact: ${esc(v.phone||'9876543210')}</p></div>
+${items.map(i=>{const q=cart.q[i.id]||0;return `<div class="cd flex gap-3 items-center">${i.img?`<img src="${i.img}" alt="" class="w-16 h-16 rounded-xl object-cover">`:''}<div class="flex-1"><b class="text-sm">${esc(i.name)}</b><p class="text-xs text-slate-400"><span class="text-indigo-400 font-bold">₹${i.price}</span> | ${i.stock>0?i.stock+' left':'Sold out'}</p></div>${i.stock>0?`<div class="flex items-center gap-2"><button data-a="qty" data-v="${i.id}:-1" class="b b2">-</button><span class="w-4 text-center">${q}</span><button data-a="qty" data-v="${i.id}:1" class="b">+</button></div>`:''}</div>`}).join('')||'<p class="text-xs text-slate-500 text-center">This vendor has not added items yet.</p>'}
+${n?`<div class="sticky bottom-4 bg-indigo-600 rounded-2xl p-4 flex justify-between items-center shadow-lg"><div><p class="text-xs">${n} items selected</p><b>Total: ₹${cartTotal()}</b></div><button data-a="checkout" class="b" style="background:#fff;color:#4f46e5">Checkout →</button></div>`:''}`},
+
+checkout:()=>{const u=me(),v=S.vendors.find(x=>x.id===vid);
+const rows=Object.entries(cart.q).map(([id,q])=>{const i=S.items.find(x=>x.id==id);return `<div class="flex justify-between text-sm"><span>${esc(i.name)} × ${q}</span><span>₹${q*i.price}</span></div>`}).join('');
+const upi=`upi://pay?pa=${encodeURIComponent(v.upi||'ratriruchigal@iitkgp')}&pn=${encodeURIComponent(v.name)}&am=${cartTotal()}&cu=INR`;
+return `<button data-a="go" data-v="store" class="b b2">← Back to menu</button>
+<div class="cd space-y-1"><p class="hd">Order summary</p>${rows}<div class="flex justify-between font-bold border-t border-slate-700 pt-2"><span>Total</span><span class="text-indigo-400">₹${cartTotal()}</span></div><p class="text-xs text-emerald-400">Expected delivery: ${esc(v.win)}</p></div>
+<div class="cd"><p class="hd">Delivery details</p>
+<label class="lb">Name</label><input id="c-name" class="in" value="${esc(u.name)}">
+<label class="lb">Hall of residence</label><select id="c-hall" class="in">${opts(HALLS,u.hall)}</select>
+<label class="lb">Room number</label><input id="c-room" class="in" placeholder="e.g. C-214">
+<label class="lb">Phone</label><input id="c-phone" class="in" type="tel" value="${esc(u.phone)}"></div>
+<div class="cd"><p class="hd">Payment Method</p><div class="flex gap-2"><button id="pb-COD" data-a="pay" data-v="COD" class="b flex-1">Cash on delivery</button><button id="pb-UPI" data-a="pay" data-v="UPI" class="b b2 flex-1">UPI QR</button></div>
+<div id="upi" class="hidden mt-3 space-y-2 text-xs text-center"><p>Pay <b>₹${cartTotal()}</b> to <b class="text-indigo-300">${esc(v.upi||'ratriruchigal@iitkgp')}</b></p><img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(upi)}" class="w-24 h-24 mx-auto rounded"><a href="${upi}" class="b inline-block mt-1">Open UPI app</a><label class="lb text-left">Upload payment screenshot</label><input type="file" accept="image/*" data-c="proof" class="text-xs"></div></div>
+<button data-a="place" class="b w-full py-3 text-sm font-bold">Confirm & Lock Order</button>`},
+
+orders:()=>{const allUserOrders=S.orders.filter(o=>S.session&&o.uid===S.session.uid);
+let l = allUserOrders;
+if(custTab==='active') l = allUserOrders.filter(o=>o.status!=='Delivered');
+if(custTab==='unpaid') l = allUserOrders.filter(o=>!o.paid);
+if(custTab==='paid') l = allUserOrders.filter(o=>o.paid);
+if(custTab==='past') l = allUserOrders.filter(o=>o.status==='Delivered');
+
+return `<div class="flex justify-between items-center"><h2 class="font-bold text-xl">My Order History</h2><button data-a="go" data-v="categories" class="b b2">← Categories</button></div>
+<div class="flex gap-1 bg-slate-800 p-1 rounded-xl overflow-x-auto text-xs">
+  <button data-a="custFilter" data-v="all" class="b ${custTab==='all'?'':'b2'}">All</button>
+  <button data-a="custFilter" data-v="active" class="b ${custTab==='active'?'':'b2'}">Active</button>
+  <button data-a="custFilter" data-v="unpaid" class="b ${custTab==='unpaid'?'':'b2'}" style="color:#f59e0b">Unpaid</button>
+  <button data-a="custFilter" data-v="paid" class="b ${custTab==='paid'?'':'b2'}" style="color:#10b981">Paid</button>
+  <button data-a="custFilter" data-v="past" class="b ${custTab==='past'?'':'b2'}">Past</button>
+</div>
+${l.map(o=>{const v=S.vendors.find(x=>x.id===o.vid);return `<div class="cd text-xs space-y-2"><div class="flex justify-between items-start"><b class="text-indigo-300">${o.id}</b><div>${badge(o.status)}</div></div><p class="font-bold text-white">${o.lines.map(x=>esc(x.name)+' ×'+x.qty).join(', ')}</p><p class="text-slate-400">${esc(v?v.name:'')} | ₹${o.total} | <span class="${o.paid?'text-emerald-400':'text-amber-400'}">${o.paid?'Paid':'Unpaid ('+o.method+')'}</span></p>
+${!o.paid ? `<div class="flex justify-between items-center border-t border-slate-700 pt-2"><span class="text-amber-400">Payment pending</span><button data-a="openPayModal" data-v="${o.id}" class="b" style="background:#059669">Pay Now / Submit Proof</button></div>` : ''}
+</div>`}).join('')||'<p class="text-center text-xs text-slate-500 py-6">No orders match this filter.</p>'}
+
+<div class="cd space-y-2 mt-6">
+  <p class="hd">Report an Issue with an Order</p>
+  <label class="lb">Select Order</label>
+  <select id="iss-oid" class="in">${allUserOrders.map(o=>`<option value="${o.id}">${o.id} - ₹${o.total}</option>`).join('')||'<option value="">No past orders</option>'}</select>
+  <label class="lb">Describe Complaint</label>
+  <input id="iss-txt" class="in" placeholder="Issue details...">
+  <button data-a="submitIssue" class="b w-full mt-2">Submit Complaint Ticket</button>
+</div>`},
+
+vdash:()=>{const v=mv(),open=S.complaints.filter(c=>c.vid===v.id&&c.open).length;
+const tabs=[['orders','Orders'],['menu','Menu'],['route','Route'],['issues','Issues'+(open?' ('+open+')':'')]];
+return `<div class="flex justify-between items-center"><div><h2 class="font-bold text-xl">${esc(v.name)}</h2><p class="text-xs text-purple-400">${esc(v.type)} | ${CAT[v.cat]}</p></div><button data-a="logout" class="b b2">Log out</button></div>
+<div class="grid grid-cols-4 gap-1 bg-slate-800 p-1 rounded-2xl">${tabs.map(([k,n])=>`<button data-a="tab" data-v="${k}" class="b ${vtab===k?'':'b2'}" style="padding:.5rem .2rem">${n}</button>`).join('')}</div>${T[vtab](v)}`}
+};
+
+const T={
+orders:v=>{
+let l=S.orders.filter(o=>o.vid===v.id),p=l.filter(o=>o.paid).length;
+const overdueList = l.filter(o=>isOverdue(o));
+
+return `<div class="grid grid-cols-4 gap-1 text-center"><div class="cd p-2"><p class="text-[10px] text-slate-400">Total</p><b class="text-lg">${l.length}</b></div><div class="cd p-2"><p class="text-[10px] text-emerald-300">Paid</p><b class="text-lg text-emerald-400">${p}</b></div><div class="cd p-2"><p class="text-[10px] text-amber-300">Unpaid</p><b class="text-lg text-amber-400">${l.length-p}</b></div><div class="cd p-2"><p class="text-[10px] text-rose-300">Overdue</p><b class="text-lg text-rose-400">${overdueList.length}</b></div></div>
+
+${l.map(o=>{
+  const od = isOverdue(o);
+  return `<div class="cd text-xs space-y-1 ${od?'border-rose-500 bg-rose-950/20':''}">
+  <div class="flex justify-between"><b class="text-purple-400">${o.id}</b>
+  <div>${od ? `<span class="badge-overdue">🚨 OVERDUE (>7 DAYS)</span>` : `<span class="${o.paid?'text-emerald-400':'text-amber-400'}">${o.paid?'Paid':'Unpaid ('+o.method+')'}</span>`}</div>
+  </div>
+  <p class="text-sm font-bold text-white">${esc(o.name)} <span class="font-normal text-slate-400">${esc(o.hall)} Hall, ${esc(o.room)}</span></p>
+  <p>📦 ${o.lines.map(x=>esc(x.name)+' ×'+x.qty).join(', ')}</p>
+  <p class="text-indigo-300">📞 Contact: <a href="tel:${esc(o.phone)}" class="underline">${esc(o.phone)}</a> (${daysAgo(o.t)})</p>
+  <div class="flex flex-wrap gap-1 items-center pt-2 border-t border-slate-700">
+  <b class="text-emerald-400 text-sm mr-auto">₹${o.total}</b>
+  <select data-c="status" data-v="${o.id}" class="in" style="width:auto">${opts(STAT,o.status)}</select>
+  <button data-a="paid" data-v="${o.id}" class="b b2">${o.paid?'Mark Unpaid':'Mark Paid'}</button>
+  ${!o.paid ? `<button data-a="waAlert" data-v="${o.id}" class="b" style="background:#25D366;color:#fff">WhatsApp Alert</button>`:''}
+  ${o.proof?`<button data-a="proof" data-v="${o.id}" class="b b2">Proof</button>`:''}
+  </div></div>`
+}).join('')||'<p class="text-center text-xs text-slate-500 py-6">No orders yet.</p>'}`},
+
+menu:v=>`<div class="cd"><label class="lb" style="margin-top:0">Delivery window (customers see this as the ETA)</label><input class="in" data-c="win" value="${esc(v.win)}"></div>
+<div class="cd"><p class="hd">Add offering</p><input id="n-name" class="in" placeholder="Name, e.g. Paneer Roll"><div class="grid grid-cols-2 gap-2 mt-2"><input id="n-price" type="number" class="in" placeholder="Price ₹"><input id="n-stock" type="number" class="in" placeholder="Quantity"></div><input type="file" accept="image/*" data-c="img" class="text-xs mt-2"><button data-a="add" class="b w-full mt-2">Add item</button></div>
+${S.items.filter(i=>i.vid===v.id).map(i=>`<div class="cd flex gap-3 items-center text-xs">${i.img?`<img src="${i.img}" alt="" class="w-14 h-14 rounded-xl object-cover">`:''}<div class="flex-1"><b class="text-sm">${esc(i.name)}</b><p class="text-slate-400">₹${i.price} | Stock ${i.stock}</p></div><button data-a="edit" data-v="${i.id}" class="b b2">Edit</button><button data-a="del" data-v="${i.id}" class="b" style="background:#7f1d1d">Delete</button></div>`).join('')}`,
+
+route:v=>{const a=S.orders.filter(o=>o.vid===v.id&&o.status!=='Delivered'),tot={},hl={};
+a.forEach(o=>{o.lines.forEach(l=>tot[l.name]=(tot[l.name]||0)+l.qty);const h=hl[o.hall]=hl[o.hall]||{n:0,amt:0};h.n++;h.amt+=o.total});
+const hs=Object.entries(hl).sort((x,y)=>y[1].n-x[1].n),msg='Delivery route:\n'+hs.map(([h,d],i)=>(i+1)+'. '+h+' Hall - '+d.n+' orders').join('\n');
+return `<div class="cd"><p class="hd">Total to prepare</p>${Object.entries(tot).map(([n,q])=>`<div class="flex justify-between text-sm"><span>${esc(n)}</span><b>${q}</b></div>`).join('')||'<p class="text-xs text-slate-500">No pending orders.</p>'}</div>
+<div class="cd space-y-2"><p class="hd">Hall route (most orders first)</p>${hs.map(([h,d],i)=>`<div class="flex justify-between bg-slate-900 rounded-xl p-2.5 text-xs"><span>${i+1}. ${esc(h)} Hall (${d.n} orders)</span><b class="text-emerald-400">₹${d.amt}</b></div>`).join('')||'<p class="text-xs text-slate-500">Route appears when orders arrive.</p>'}
+${hs.length?`<a href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" class="b block text-center">Share route on WhatsApp</a>`:''}</div>`},
+
+issues:v=>{const l=S.complaints.filter(c=>c.vid===v.id);
+return l.map(c=>`<div class="cd text-xs space-y-1"><div class="flex justify-between"><b class="text-purple-400">${esc(c.oid)}</b><span class="${c.open?'text-amber-400':'text-emerald-400'}">${c.open?'Open':'Resolved'}</span></div><p class="text-sm">${esc(c.text)}</p><p class="text-slate-400">From ${esc(c.name)}</p>${c.open?`<button data-a="resolve" data-v="${c.id}" class="b b2">Mark resolved</button>`:''}</div>`).join('')||'<p class="text-center text-xs text-slate-500 py-6">No complaints. Customer issues show up here.</p>'}
+};
+
+const A={
+go:v=>go(v),
+role:r=>{role=r;authMode='choice';if(S.session&&S.session.role===r)enter();else go('auth')},
+setAuthMode:m=>{authMode=m;render()},
+login:()=>{
+  const user = $('l-user').value.trim().toLowerCase();
+  const pass = $('l-pass').value.trim();
+  if(!user || !pass) return toast('Please enter username and password');
+  let u = S.users.find(x=>x.email===user && x.role===role);
+  if(!u){
+    u = {id:nid(),role,name:user.split('@')[0]||'User',email:user,phone:'9876543210',hall:'LBS'};
+    S.users.push(u);
+  }
+  S.session={uid:u.id,role};save();enter();
+},
+auth:()=>{const name=$('a-name').value.trim(),email=$('a-email').value.trim().toLowerCase(),phone=$('a-phone').value.trim(),hall=role==='customer'?$('a-hall').value:'';
+if(!name||!email.includes('@')||phone.length<8)return toast('Enter name, a valid email and phone');
+let u=S.users.find(x=>x.email===email&&x.role===role);
+if(u){u.name=name;u.phone=phone;if(hall)u.hall=hall}else{u={id:nid(),role,name,email,phone,hall};S.users.push(u)}
+S.session={uid:u.id,role};save();enter()},
+onboard:()=>{const name=$('o-name').value.trim(),desc=$('o-desc').value.trim(),phone=$('o-phone').value.trim();
+if(!name||!desc)return toast('Enter business name and what you offer');
+S.vendors.push({id:'v'+nid(),ownerId:S.session.uid,name,type:$('o-type').value,cat:$('o-cat').value,desc,win:$('o-win').value.trim()||'Evening',upi:$('o-upi').value.trim()||'ratriruchigal@iitkgp',phone:phone||'9876543210'});
+save();go('vdash')},
+logout:()=>{S.session=null;role=null;authMode='choice';save();go('landing')},
+pickCat:k=>{selectedCat=k;go('vendors')},
+custFilter:v=>{custTab=v;render()},
+store:id=>{if(cart.vid!==id)cart={vid:id,q:{}};vid=id;go('store')},
+qty:v=>{const [id,d]=v.split(':'),i=S.items.find(x=>x.id==id),n=(cart.q[id]||0)+Number(d);
+if(n>i.stock)return toast('Only '+i.stock+' in stock');
+if(n<=0)delete cart.q[id];else cart.q[id]=n;render()},
+checkout:()=>{if(!Object.keys(cart.q).length)return;pay='COD';proof='';go('checkout')},
+pay:m=>{pay=m;['COD','UPI'].forEach(k=>$('pb-'+k).className='b flex-1 '+(k===m?'':'b2'));$('upi').classList.toggle('hidden',m!=='UPI')},
+place:()=>{const name=$('c-name').value.trim(),room=$('c-room').value.trim(),phone=$('c-phone').value.trim(),hall=$('c-hall').value;
+if(!name||!room||!phone)return toast('Fill in your delivery details');
+if(pay==='UPI'&&!proof)return toast('Upload your payment screenshot');
+const lines=Object.entries(cart.q).map(([id,q])=>{const i=S.items.find(x=>x.id==id);return {id:i.id,name:i.name,qty:q,price:i.price}});
+for(const l of lines){const i=S.items.find(x=>x.id===l.id);if(l.qty>i.stock)return toast(i.name+': stock changed, adjust quantity')}
+lines.forEach(l=>{S.items.find(x=>x.id===l.id).stock-=l.qty});
+const v=S.vendors.find(x=>x.id===vid);
+const o={id:'KGP-'+nid(),uid:S.session.uid,vid,name,hall,room,phone,lines,total:cartTotal(),method:pay,paid:pay==='UPI',proof:pay==='UPI'?proof:'',status:'Placed',t:Date.now()};
+S.orders.unshift(o);cart={vid:null,q:{}};lastOrder=o.id;save();
+
+// Show confirmation modal
+$('receiptBody').innerHTML = `
+  <div class="flex justify-between border-b border-slate-700 pb-1"><span>Order ID</span><b class="text-indigo-300">${o.id}</b></div>
+  <div class="flex justify-between border-b border-slate-700 pb-1"><span>Total</span><b class="text-emerald-400">₹${o.total}</b></div>
+  <div class="flex justify-between border-b border-slate-700 pb-1"><span>Deliver to</span><span>${esc(o.hall)} Hall, ${esc(o.room)}</span></div>
+  <div class="flex justify-between border-b border-slate-700 pb-1"><span>Vendor POC</span><span class="text-indigo-300">📞 ${esc(v.phone||'9876543210')}</span></div>
+  <div class="flex justify-between"><span>Payment</span><span>${o.paid?'Paid':'Unpaid ('+o.method+')'}</span></div>
+`;
+$('receiptModal').classList.remove('hidden');
+$('receiptModal').classList.add('flex');
+},
+closeReceipt:()=>{
+  $('receiptModal').classList.add('hidden');
+  $('receiptModal').classList.remove('flex');
+  go('orders');
+},
+openPayModal:id=>{
+  const o = S.orders.find(x=>x.id===id);
+  if(!o) return;
+  activePayOid = id;
+  $('payModalOid').textContent = o.id;
+  $('payModalAmt').textContent = `Amount due: ₹${o.total}`;
+  $('payModal').classList.remove('hidden');
+  $('payModal').classList.add('flex');
+},
+closePayModal:()=>{
+  $('payModal').classList.add('hidden');
+  $('payModal').classList.remove('flex');
+  activePayOid = null;
+  payModalProof = '';
+},
+submitPayProof:()=>{
+  if(!activePayOid) return;
+  const o = S.orders.find(x=>x.id===activePayOid);
+  if(o){
+    o.paid = true;
+    if(payModalProof) o.proof = payModalProof;
+    save();
+    A.closePayModal();
+    render();
+    toast('Payment marked as paid!');
+  }
+},
+submitIssue:()=>{
+  const oid = $('iss-oid').value;
+  const txt = $('iss-txt').value.trim();
+  if(!oid || !txt) return toast('Select order and enter complaint description');
+  const o = S.orders.find(x=>x.id===oid);
+  S.complaints.unshift({id:nid(),oid:oid,vid:o.vid,name:o.name,text:txt,open:true});
+  save();
+  $('iss-txt').value = '';
+  toast('Complaint ticket sent to vendor');
+},
+waAlert:id=>{
+  const o = S.orders.find(x=>x.id===id);
+  if(!o) return;
+  const v = S.vendors.find(x=>x.id===o.vid);
+  const msg = `Hi ${o.name}, payment reminder from ${v.name} for Order #${o.id} (₹${o.total}). Please pay via UPI (${v.upi||'ratriruchigal@iitkgp'}). Thank you!`;
+  window.open(`https://wa.me/91${o.phone}?text=${encodeURIComponent(msg)}`, '_blank');
+},
+tab:v=>{vtab=v;newImg='';render()},
+paid:id=>{const o=S.orders.find(x=>x.id===id);o.paid=!o.paid;save();render();toast('Payment status updated')},
+proof:id=>{$('mimg').src=S.orders.find(x=>x.id===id).proof;$('modal').classList.remove('hidden');$('modal').classList.add('flex')},
+closeModal:()=>{$('modal').classList.add('hidden');$('modal').classList.remove('flex')},
+add:()=>{const name=$('n-name').value.trim(),price=parseFloat($('n-price').value),stock=parseInt($('n-stock').value);
+if(!name||isNaN(price)||isNaN(stock)||price<0||stock<0)return toast('Enter name, price and quantity');
+S.items.push({id:nid(),vid:mv().id,name,price,stock,img:newImg});newImg='';save();render();toast('Item added')},
+edit:id=>{const i=S.items.find(x=>x.id==id),p=parseFloat(prompt('New price (₹)',i.price)),s=parseInt(prompt('New stock quantity',i.stock));
+if(isNaN(p)||isNaN(s)||p<0||s<0)return toast('Enter valid numbers');i.price=p;i.stock=s;save();render()},
+del:id=>{if(!confirm('Delete this item?'))return;S.items=S.items.filter(x=>x.id!=id);save();render()},
+resolve:id=>{S.complaints.find(c=>c.id==id).open=false;save();render()}
+};
+
+document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b&&A[b.dataset.a])A[b.dataset.a](b.dataset.v)});
+document.addEventListener('change',e=>{const t=e.target,c=t.dataset.c;if(!c)return;
+if(c==='proof')readImg(t.files[0],800,d=>{proof=d;toast('Screenshot attached')});
+if(c==='payProof')readImg(t.files[0],800,d=>{payModalProof=d;toast('Screenshot attached')});
+if(c==='img')readImg(t.files[0],300,d=>{newImg=d;toast('Photo attached')});
+if(c==='status'){S.orders.find(x=>x.id===t.dataset.v).status=t.value;save();toast('Status updated')}
+if(c==='win'){const v=mv();v.win=t.value.trim()||v.win;save();toast('Delivery window saved')}});
+
+render();
+</script>
+</body>
+</html>
